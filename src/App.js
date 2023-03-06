@@ -1,32 +1,67 @@
 import axios from "axios";
 import "./App.css";
-import react, { useState } from "react";
+import React, { useState } from "react";
 
 function App() {
-  const [code, setCode] = useState(" ");
-  const [language, setLanguage] = useState("cpp ");
-  const [output, setOutput] = useState(" ");
+  const [code, setCode] = useState("");
+  const [output, setOutput] = useState("");
+  const [language, setLanguage] = useState("cpp");
+  const [jobId, setJobId] = useState(null);
+  const [status, setStatus] = useState(null);
+  let pollInterval;
 
   const handleSubmit = async () => {
     const payload = {
       language,
-      code, //code: "code"
+      code,
     };
     try {
       setOutput("");
+      setStatus(null);
+      setJobId(null);
       const { data } = await axios.post("http://localhost:5000/run", payload);
-      console.log(data);
-      setOutput(data.output);
-    } catch ({ response }) {
-      if(response){
-        const errMsg = response.data.err.stderr;
-      setOutput(errMsg);
-      } else{
-        setOutput("Error connecting to server");
+      if (data.jobId) {
+        setJobId(data.jobId);
+        setStatus("Submitted.");
+
+        // poll here
+        pollInterval = setInterval(async () => {
+          const { data: statusRes } = await axios.get(
+            `http://localhost:5000/status`,
+            {
+              params: {
+                id: data.jobId,
+              },
+            }
+          );
+          const { success, job, error } = statusRes;
+          console.log(statusRes);
+          if (success) {
+            const { status: jobStatus, output: jobOutput } = job;
+            setStatus(jobStatus);
+            if(jobStatus === "pending") return;
+            setOutput(jobOutput);
+            clearInterval(pollInterval);
+          } else {
+            console.error(error);
+            setOutput(error);
+            setStatus("Bad request");
+            clearInterval(pollInterval);
+          }
+        }, 1000);
+      } else {
+        setOutput("Retry again.");
       }
-      
+    } catch ({ response }) {
+      if (response) {
+        const errMsg = response.data.err.stderr;
+        setOutput(errMsg);
+      } else {
+        setOutput("Please retry submitting.");
+      }
     }
   };
+
   return (
     <div className="App">
       <div className="container my-3">
@@ -83,8 +118,10 @@ function App() {
           Submit
         </button>
         {/* <button onClick={handleSubmit}>Submit</button> */}
-        <p>{output}</p>
-      </div>
+        <p>{status}</p>
+      <p>{jobId ? `Job ID: ${jobId}` : ""}</p>
+      <p>{output}</p>
+    </div>
     </div>
   );
 }
