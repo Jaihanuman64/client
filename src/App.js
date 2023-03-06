@@ -9,15 +9,21 @@ function App() {
 
   const handleSubmit = async () => {
     const payload = {
-      language: "cpp",
+      language,
       code, //code: "code"
     };
     try {
+      setOutput("");
       const { data } = await axios.post("http://localhost:5000/run", payload);
       setOutput(data.output);
-      // console.log(output);
-    } catch (err) {
-      console.log(err.response);
+    } catch ({ response }) {
+      if(response){
+        const errMsg = response.data.err.stderr;
+      setOutput(errMsg);
+      } else{
+        setOutput("Error connecting to server");
+      }
+      
     }
   };
   return (
@@ -25,16 +31,17 @@ function App() {
       <div className="container my-3">
         <h1>Online Code Compiler</h1>
         <div>
-          <label>Language: </label>
-          <select
-            className="form-select my-2"
-            aria-label="Default select example"
-          >
-            <option defaultValue>C++</option>
-            <option value="1">Python</option>
-            <option value="2">Java</option>
-            <option value="3">Javacript</option>
-          </select>
+        <label>Language:</label>
+        <select
+          value={language}
+          onChange={(e) => {
+            setLanguage(e.target.value);
+            console.log(e.target.value);
+          }}
+        >
+          <option value="cpp">C++</option>
+          <option value="py">Python</option>
+        </select>
           {/* <select>
         <option>C++</option>
         <option>Python</option>
